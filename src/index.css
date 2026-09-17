@@ -1,0 +1,67 @@
+@import url('https://fonts.googleapis.com/css2?family=Bevan&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --font-wordmark: 'Bevan', ui-serif, serif;
+
+  --color-ink: #1c2620;
+  --color-accent: #0d9488;
+  --color-accent-light: #5eead4;
+  --color-accent-soft: #f0fdfa;
+  --color-accent-soft-text: #0f766e;
+  --color-cream: #f5f0e8;
+
+  /* Plain hex, not Tailwind v4's default oklch() — html2canvas 1.4.1 (used
+     for Download/Email/WhatsApp JPG capture on printable slips) can't parse
+     oklch() and throws on any ancestor element using these utilities, even
+     ones outside the captured element (it resolves computed style up to
+     <body>). Same numeric palette as Tailwind v3, just expressed as hex. */
+  --color-stone-50: #fafaf9;
+  --color-stone-100: #f5f5f4;
+  --color-stone-200: #e7e5e4;
+  --color-stone-300: #d6d3d1;
+  --color-stone-400: #a8a29e;
+  --color-stone-500: #78716c;
+  --color-stone-600: #57534e;
+  --color-stone-700: #44403c;
+  --color-stone-800: #292524;
+  --color-stone-900: #1c1917;
+  --color-amber-50: #fffbeb;
+  --color-amber-700: #b45309;
+  --color-emerald-50: #ecfdf5;
+  --color-emerald-700: #047857;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--color-stone-100);
+  color: var(--color-stone-800);
+}
+
+/* Isolates a printable slip (Production Order, RMDC, …) so only that
+   element's own content appears in the browser's print output. */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .print-area,
+  .print-area * {
+    visibility: visible;
+  }
+  .print-area {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    margin: 0;
+    border: none;
+  }
+}
