@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Pencil, Plus, X, Trash2, Search, BookOpen } from 'lucide-react'
+import { Trash2, Search, BookOpen, Save } from 'lucide-react'
 import { supabase } from '../../lib/supabaseClient'
 import { friendlyError } from '../../lib/pgError'
 import { fmt } from '../../lib/format'
+import { withDenierSuffix } from '../../lib/suffix'
 import { useAuth } from '../../context/AuthContext'
-import { Card, Label, Input, Select, Btn, Empty, Header, IconBtn, ConfirmBar } from '../../components/ui'
+import { Card, Label, Input, Select, Btn, Empty, Header, IconBtn, AddBtn, ConfirmBar } from '../../components/ui'
+import { QuickAddYarnTypeModal, QuickAddColourModal } from '../production-orders/QuickAddModals'
 
 const DEFAULT_AS_OF = '2026-04-01'
+const blankRow = () => ({ id: null, yarnTypeId: '', colourId: '', requiredKg: '', excessKg: '' })
 
 export default function OpeningBalance() {
   const { isAdmin } = useAuth()
@@ -15,19 +18,24 @@ export default function OpeningBalance() {
   const [rows, setRows] = useState(null)
 
   const [weaverId, setWeaverId] = useState('')
-  const [yarnTypeId, setYarnTypeId] = useState('')
-  const [colourId, setColourId] = useState('')
   const [asOfDate, setAsOfDate] = useState(DEFAULT_AS_OF)
-  const [requiredKg, setRequiredKg] = useState('')
-  const [excessKg, setExcessKg] = useState('')
-  const [editingId, setEditingId] = useState(null)
+  const [gridRows, setGridRows] = useState([])
+  const [addModal, setAddModal] = useState(null) // { kind: 'yarn'|'colour', rowIdx, yarnTypeId? }
   const [error, setError] = useState('')
+  const [saving, setSaving] = useState(false)
   const [confirmDeleteId, setConfirmDeleteId] = useState(null)
   const [query, setQuery] = useState('')
 
   const load = async () => {
     const { data } = await supabase.from('yarn_opening_balances').select('*').order('created_at')
     setRows(data ?? [])
+  }
+  const loadMasters = async () => {
+    const [{ data: yt }, { data: yc }] = await Promise.all([
+      supabase.from('yarn_types').select('*').order('name'),
+      supabase.from('yarn_colours').select('*'),
+    ])
+    setYarnTypes((yt ?? []).map((y) => ({ ...y, colours: (yc ?? []).filter((c) => c.yarn_type_id === y.id) })))
   }
   useEffect(() => {
     supabase
@@ -36,59 +44,110 @@ export default function OpeningBalance() {
       .eq('is_active', true)
       .order('name')
       .then(({ data }) => setWeavers(data ?? []))
-    Promise.all([supabase.from('yarn_types').select('*').order('name'), supabase.from('yarn_colours').select('*')]).then(([{ data: yt }, { data: yc }]) => {
-      setYarnTypes((yt ?? []).map((y) => ({ ...y, colours: (yc ?? []).filter((c) => c.yarn_type_id === y.id) })))
-    })
+    loadMasters()
     load()
   }, [])
 
   const weaversById = useMemo(() => Object.fromEntries(weavers.map((w) => [w.id, w])), [weavers])
   const yarnTypesById = useMemo(() => Object.fromEntries(yarnTypes.map((y) => [y.id, y])), [yarnTypes])
   const coloursById = useMemo(() => Object.fromEntries(yarnTypes.flatMap((y) => y.colours.map((c) => [c.id, c]))), [yarnTypes])
-  const selectedYarnType = yarnTypesById[yarnTypeId]
 
-  const cancelEdit = () => {
-    setEditingId(null)
-    setWeaverId('')
-    setYarnTypeId('')
-    setColourId('')
-    setAsOfDate(DEFAULT_AS_OF)
-    setRequiredKg('')
-    setExcessKg('')
+  // Selecting a weaver loads their existing rows straight into the grid
+  // for editing; picking a different weaver (or none) resets it to a
+  // single blank row ready for entry.
+  useEffect(() => {
+    if (!weaverId || rows === null) {
+      setGridRows(weaverId ? [blankRow()] : [])
+      return
+    }
+    const existing = rows.filter((r) => r.weaver_id === weaverId)
+    if (existing.length === 0) {
+      setGridRows([blankRow()])
+      setAsOfDate(DEFAULT_AS_OF)
+      return
+    }
+    setGridRows(
+      existing.map((r) => ({
+        id: r.id,
+        yarnTypeId: r.yarn_type_id,
+        colourId: r.colour_id,
+        requiredKg: r.required_kg > 0 ? String(r.required_kg) : '',
+        excessKg: r.excess_kg > 0 ? String(r.excess_kg) : '',
+      }))
+    )
+    setAsOfDate(existing[0].as_of_date)
+  }, [weaverId, rows])
+
+  const selectWeaver = (id) => {
+    setWeaverId(id)
     setError('')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  const startEdit = (r) => {
-    setEditingId(r.id)
-    setWeaverId(r.weaver_id)
-    setYarnTypeId(r.yarn_type_id)
-    setColourId(r.colour_id)
-    setAsOfDate(r.as_of_date)
-    setRequiredKg(r.required_kg > 0 ? String(r.required_kg) : '')
-    setExcessKg(r.excess_kg > 0 ? String(r.excess_kg) : '')
-    setError('')
+  const updateRow = (idx, patch) => setGridRows((rs) => rs.map((r, i) => (i === idx ? { ...r, ...patch } : r)))
+  const addGridRow = () => setGridRows((rs) => [...rs, blankRow()])
+  const removeGridRow = async (idx) => {
+    const row = gridRows[idx]
+    if (!row.id) {
+      setGridRows((rs) => rs.filter((_, i) => i !== idx))
+      return
+    }
+    const { error } = await supabase.from('yarn_opening_balances').delete().eq('id', row.id)
+    if (error) return setError(friendlyError(error))
+    load()
   }
 
   const submit = async () => {
     if (!weaverId) return setError('Select a weaver.')
-    if (!yarnTypeId) return setError('Select a yarn quality.')
-    if (!colourId) return setError('Select a colour.')
-    if (!asOfDate) return setError('As-of date is required.')
-    const req = Number(requiredKg) || 0
-    const exc = Number(excessKg) || 0
-    if (req > 0 && exc > 0) return setError('Enter either Yarn Required or Excess Yarn for this colour, not both.')
-    if (req <= 0 && exc <= 0) return setError('Enter a Yarn Required or Excess Yarn amount greater than zero.')
+    if (!asOfDate) return setError('As-on date is required.')
+    const seen = new Set()
+    const toUpsert = []
+    for (const r of gridRows) {
+      const hasAny = r.yarnTypeId || r.colourId || r.requiredKg || r.excessKg
+      if (!hasAny) continue
+      if (!r.yarnTypeId) return setError('Select a yarn quality for every row.')
+      if (!r.colourId) return setError('Select a colour for every row.')
+      const req = Number(r.requiredKg) || 0
+      const exc = Number(r.excessKg) || 0
+      if (req > 0 && exc > 0) return setError('Enter either Yarn Required or Excess Yarn per row, not both.')
+      if (req <= 0 && exc <= 0) return setError('Enter a Yarn Required or Excess Yarn amount for every row.')
+      const key = `${r.yarnTypeId}|${r.colourId}`
+      if (seen.has(key)) return setError('The same yarn + colour appears twice — combine them into one row.')
+      seen.add(key)
+      toUpsert.push({ weaver_id: weaverId, yarn_type_id: r.yarnTypeId, colour_id: r.colourId, as_of_date: asOfDate, required_kg: req, excess_kg: exc })
+    }
+    if (!toUpsert.length) return setError('Add at least one yarn + colour row.')
 
-    const payload = { weaver_id: weaverId, yarn_type_id: yarnTypeId, colour_id: colourId, as_of_date: asOfDate, required_kg: req, excess_kg: exc }
-    const { error } = editingId
-      ? await supabase.from('yarn_opening_balances').update(payload).eq('id', editingId)
-      : await supabase.from('yarn_opening_balances').insert(payload)
+    setSaving(true)
+    const { error } = await supabase.from('yarn_opening_balances').upsert(toUpsert, { onConflict: 'weaver_id,yarn_type_id,colour_id' })
+    setSaving(false)
     if (error) {
-      setError(friendlyError(error, { onDuplicate: 'An opening balance already exists for this weaver + yarn + colour — edit that entry instead.' }))
+      setError(friendlyError(error))
       return
     }
-    cancelEdit()
+    setError('')
     load()
+  }
+
+  const createYarnType = async (name, denier) => {
+    const dNorm = withDenierSuffix(denier)
+    const dup = yarnTypes.some((y) => y.name.trim().toLowerCase() === name.toLowerCase())
+    if (dup) return `${name} already exists as a yarn type.`
+    const { data, error } = await supabase.from('yarn_types').insert({ name, denier: dNorm }).select().single()
+    if (error) return friendlyError(error)
+    await loadMasters()
+    updateRow(addModal.rowIdx, { yarnTypeId: data.id, colourId: '' })
+    setAddModal(null)
+    return null
+  }
+
+  const createColour = async (name) => {
+    const { data, error } = await supabase.from('yarn_colours').insert({ yarn_type_id: addModal.yarnTypeId, colour_name: name }).select().single()
+    if (error) return friendlyError(error, { onDuplicate: `"${name}" already exists for this yarn.` })
+    await loadMasters()
+    updateRow(addModal.rowIdx, { colourId: data.id })
+    setAddModal(null)
+    return null
   }
 
   const remove = async (id) => {
@@ -144,94 +203,135 @@ export default function OpeningBalance() {
         subtitle="One-time starting figures as on go-live (1 Apr 2026) for yarn already owed to, or already excess with, a weaver before Production Orders/Yarn Issue existed in this system. Carried automatically into that weaver's Yarn Required and Stock-in-Hand from this point on."
       />
 
-      <Card className="p-5 max-w-2xl mb-6">
-        <Label>{editingId ? 'Edit opening balance' : 'Add opening balance'}</Label>
-        <div className="grid gap-3">
-          <div className="grid sm:grid-cols-3 gap-3">
-            <div>
-              <Label>Weaver</Label>
-              <Select value={weaverId} onChange={(e) => { setWeaverId(e.target.value); setError('') }}>
-                <option value="">Select…</option>
-                {weavers.map((w) => (
-                  <option key={w.id} value={w.id}>
-                    {w.name}
-                  </option>
-                ))}
-              </Select>
-            </div>
-            <div>
-              <Label>Yarn quality</Label>
-              <Select
-                value={yarnTypeId}
-                onChange={(e) => {
-                  setYarnTypeId(e.target.value)
-                  setColourId('')
-                  setError('')
-                }}
-              >
-                <option value="">Select…</option>
-                {yarnTypes.map((y) => (
-                  <option key={y.id} value={y.id}>
-                    {y.name}
-                  </option>
-                ))}
-              </Select>
-            </div>
-            <div>
-              <Label>Colour</Label>
-              <Select value={colourId} onChange={(e) => { setColourId(e.target.value); setError('') }} disabled={!selectedYarnType}>
-                <option value="">{selectedYarnType ? 'Select…' : 'Pick yarn first'}</option>
-                {(selectedYarnType?.colours || []).map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.colour_name}
-                  </option>
-                ))}
-              </Select>
-            </div>
+      <Card className="mb-6 overflow-hidden">
+        <div className="p-4 border-b border-stone-200 grid sm:grid-cols-2 gap-3 max-w-lg">
+          <div>
+            <Label>Weaver Name</Label>
+            <Select value={weaverId} onChange={(e) => selectWeaver(e.target.value)}>
+              <option value="">Select…</option>
+              {weavers.map((w) => (
+                <option key={w.id} value={w.id}>
+                  {w.name}
+                </option>
+              ))}
+            </Select>
           </div>
-          <div className="grid sm:grid-cols-3 gap-3">
-            <div>
-              <Label>As of date</Label>
-              <Input type="date" value={asOfDate} onChange={(e) => { setAsOfDate(e.target.value); setError('') }} />
-            </div>
-            <div>
-              <Label>Yarn Required (kg)</Label>
-              <Input
-                placeholder="0"
-                value={requiredKg}
-                onChange={(e) => {
-                  setRequiredKg(e.target.value)
-                  if (e.target.value) setExcessKg('')
-                  setError('')
-                }}
-              />
-            </div>
-            <div>
-              <Label>Excess Yarn (kg)</Label>
-              <Input
-                placeholder="0"
-                value={excessKg}
-                onChange={(e) => {
-                  setExcessKg(e.target.value)
-                  if (e.target.value) setRequiredKg('')
-                  setError('')
-                }}
-              />
-            </div>
+          <div>
+            <Label>Date (as on)</Label>
+            <Input type="date" value={asOfDate} onChange={(e) => { setAsOfDate(e.target.value); setError('') }} disabled={!weaverId} />
           </div>
         </div>
-        {error && <div className="text-xs mt-2 text-[#0D9488]">{error}</div>}
-        <div className="pt-4 mt-1 border-t border-stone-200 flex gap-2">
-          <Btn onClick={submit}>
-            {editingId ? <Pencil size={15} /> : <Plus size={15} />} {editingId ? 'Update' : 'Add'} opening balance
-          </Btn>
-          {editingId && (
-            <Btn variant="ghost" onClick={cancelEdit}>
-              <X size={15} /> Cancel
-            </Btn>
-          )}
-        </div>
+
+        {!weaverId ? (
+          <div className="p-6 text-sm text-stone-400 text-center">Select a weaver above to enter or edit their opening balance.</div>
+        ) : (
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-stone-400 text-xs">
+                    <th className="text-left font-semibold px-4 py-1.5">Yarn Quality</th>
+                    <th className="text-left font-semibold px-2 py-1.5">Colour</th>
+                    <th className="text-right font-semibold px-2 py-1.5">Yarn Required</th>
+                    <th className="text-right font-semibold px-2 py-1.5">Excess Yarn</th>
+                    <th className="w-10"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {gridRows.map((r, idx) => {
+                    const yt = yarnTypesById[r.yarnTypeId]
+                    const isExisting = !!r.id
+                    return (
+                      <tr key={idx} className="border-t border-stone-100">
+                        <td className="px-4 py-1.5 min-w-[170px]">
+                          {isExisting ? (
+                            <span className="text-stone-800">{yt?.name}</span>
+                          ) : (
+                            <div className="flex gap-1.5">
+                              <Select
+                                value={r.yarnTypeId}
+                                onChange={(e) => updateRow(idx, { yarnTypeId: e.target.value, colourId: '' })}
+                              >
+                                <option value="">Select…</option>
+                                {yarnTypes.map((y) => (
+                                  <option key={y.id} value={y.id}>
+                                    {y.name}
+                                  </option>
+                                ))}
+                              </Select>
+                              <AddBtn title="Add yarn quality" onClick={() => setAddModal({ kind: 'yarn', rowIdx: idx })} />
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-2 py-1.5 min-w-[160px]">
+                          {isExisting ? (
+                            <span className="text-stone-800">{coloursById[r.colourId]?.colour_name}</span>
+                          ) : (
+                            <div className="flex gap-1.5">
+                              <Select value={r.colourId} onChange={(e) => updateRow(idx, { colourId: e.target.value })} disabled={!yt}>
+                                <option value="">{yt ? 'Select…' : 'Pick yarn first'}</option>
+                                {(yt?.colours || []).map((c) => (
+                                  <option key={c.id} value={c.id}>
+                                    {c.colour_name}
+                                  </option>
+                                ))}
+                              </Select>
+                              <AddBtn
+                                title="Add colour"
+                                disabled={!yt}
+                                onClick={() => setAddModal({ kind: 'colour', rowIdx: idx, yarnTypeId: r.yarnTypeId })}
+                              />
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-2 py-1.5 w-28">
+                          <Input
+                            placeholder="0"
+                            value={r.requiredKg}
+                            onChange={(e) => updateRow(idx, { requiredKg: e.target.value, ...(e.target.value ? { excessKg: '' } : {}) })}
+                            className="text-right"
+                          />
+                        </td>
+                        <td className="px-2 py-1.5 w-28">
+                          <Input
+                            placeholder="0"
+                            value={r.excessKg}
+                            onChange={(e) => updateRow(idx, { excessKg: e.target.value, ...(e.target.value ? { requiredKg: '' } : {}) })}
+                            className="text-right"
+                          />
+                        </td>
+                        <td className="px-2 py-1.5">
+                          {(!isExisting || isAdmin) && (
+                            <IconBtn title="Remove row" danger onClick={() => removeGridRow(idx)}>
+                              <Trash2 size={13} />
+                            </IconBtn>
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <div className="px-4 py-2.5 border-t border-stone-200">
+              <button onClick={addGridRow} className="text-xs font-medium text-[#0D9488] hover:underline">
+                + Add row
+              </button>
+            </div>
+            {error && <div className="px-4 pb-2 text-xs text-[#0D9488]">{error}</div>}
+            <div className="px-4 py-3 border-t border-stone-200">
+              <Btn onClick={submit} disabled={saving}>
+                <Save size={15} /> {saving ? 'Saving…' : 'Save'}
+              </Btn>
+            </div>
+          </>
+        )}
       </Card>
+
+      {addModal?.kind === 'yarn' && <QuickAddYarnTypeModal onClose={() => setAddModal(null)} onCreate={createYarnType} />}
+      {addModal?.kind === 'colour' && (
+        <QuickAddColourModal yarnLabel={yarnTypesById[addModal.yarnTypeId]?.name || ''} onClose={() => setAddModal(null)} onCreate={createColour} />
+      )}
 
       {rows.length > 0 && (
         <div className="relative max-w-sm mb-4">
@@ -252,9 +352,13 @@ export default function OpeningBalance() {
         <div className="flex flex-col gap-3">
           {visibleGroups.map((g) => (
             <Card key={g.weaver.id} className="overflow-hidden">
-              <div className="px-4 py-2.5 border-b border-stone-200">
+              <button
+                onClick={() => selectWeaver(g.weaver.id)}
+                title="Edit this weaver's opening balance above"
+                className="w-full text-left px-4 py-2.5 border-b border-stone-200 hover:bg-stone-50"
+              >
                 <span className="text-sm font-semibold text-stone-800">{g.weaver.name}</span>
-              </div>
+              </button>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
@@ -279,9 +383,6 @@ export default function OpeningBalance() {
                         </td>
                         <td className="px-2 py-1.5">
                           <div className="flex items-center justify-end gap-0.5">
-                            <IconBtn title="Edit" onClick={() => startEdit(it)}>
-                              <Pencil size={13} />
-                            </IconBtn>
                             {isAdmin && (
                               <IconBtn title="Delete" danger onClick={() => setConfirmDeleteId(it.id)}>
                                 <Trash2 size={13} />
