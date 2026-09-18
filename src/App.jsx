@@ -13,9 +13,11 @@ import YarnIssue from './pages/yarn-issue/YarnIssue'
 import GoodsReceipt from './pages/goods-receipt/GoodsReceipt'
 import PendingOrders from './pages/pending-orders/PendingOrders'
 import YarnRequired from './pages/yarn-required/YarnRequired'
+import OpeningBalance from './pages/opening-balance/OpeningBalance'
 import StockInHand from './pages/stock-in-hand/StockInHand'
 import ConsumptionNorms from './pages/consumption-norms/ConsumptionNorms'
 import Users from './pages/users/Users'
+import Reports from './pages/reports/Reports'
 
 function Protected() {
   const { loading, session } = useAuth()
@@ -41,12 +43,14 @@ export default function App() {
             <Route path="design-library" element={<DesignLibrary />} />
             <Route path="production-orders" element={<ProductionOrders />} />
             <Route path="yarn-required" element={<YarnRequired />} />
+            <Route path="opening-balance" element={<OpeningBalance />} />
             <Route path="yarn-issued" element={<YarnIssue />} />
             <Route path="goods-receipt" element={<GoodsReceipt />} />
             <Route path="pending-orders" element={<PendingOrders />} />
             <Route path="stock" element={<StockInHand />} />
             <Route path="consumption-norms" element={<ConsumptionNorms />} />
             <Route path="users" element={<Users />} />
+            <Route path="reports" element={<Reports />} />
             <Route path="*" element={<Navigate to="/weavers" replace />} />
           </Route>
         </Routes>

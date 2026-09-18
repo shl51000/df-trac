@@ -114,7 +114,7 @@ export default function YarnRequired() {
       const netKg = Math.max(row.closing_balance, 0)
       const excessKg = Math.max(-row.closing_balance, 0)
       if (netKg <= 0 && excessKg <= 0) return
-      const yarnTypeName = `${yt.name} ${yt.denier}`
+      const yarnTypeName = yt.name
       if (!byYarnType[yt.id]) byYarnType[yt.id] = { yarnTypeId: yt.id, yarnTypeName, colours: [] }
       byYarnType[yt.id].colours.push({ colourId: col.id, colourName: col.colour_name, requiredKg: row.required_kg, issuedKg: row.issued_kg, netKg, excessKg })
     })

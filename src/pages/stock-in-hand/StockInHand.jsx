@@ -15,6 +15,9 @@ export default function StockInHand() {
   const [allRequirementRows, setAllRequirementRows] = useState(null) // v_po_yarn_requirement, every FY
   const [allIssues, setAllIssues] = useState([]) // yarn_issues, every FY
   const [allIssueItems, setAllIssueItems] = useState([])
+  const [openingBalances, setOpeningBalances] = useState([]) // yarn_opening_balances — go-live starting figures
+  const [yarnNamesById, setYarnNamesById] = useState({})
+  const [colourNamesById, setColourNamesById] = useState({})
   const [ledgerRows, setLedgerRows] = useState([]) // v_yarn_ledger, currentFY only — drill-down opening balance
 
   const [weaverFilter, setWeaverFilter] = useState('')
@@ -47,7 +50,46 @@ export default function StockInHand() {
         const { data: items } = await supabase.from('yarn_issue_items').select('yarn_issue_id, yarn_type_id, colour_id, yarn_type_name, colour_name, qty').in('yarn_issue_id', ids)
         setAllIssueItems(items ?? [])
       })
+    supabase.from('yarn_opening_balances').select('*').then(({ data }) => setOpeningBalances(data ?? []))
+    supabase.from('yarn_types').select('id, name').then(({ data }) => setYarnNamesById(Object.fromEntries((data ?? []).map((y) => [y.id, y.name]))))
+    supabase.from('yarn_colours').select('id, colour_name').then(({ data }) => setColourNamesById(Object.fromEntries((data ?? []).map((c) => [c.id, c.colour_name]))))
   }, [])
+
+  // Opening balances behave exactly like a requirement row / issue item
+  // dated on their own as_of_date — folding them into these two arrays
+  // means the existing "as on <date>" filtering below (which already
+  // knows how to scope arbitrary requirement/issue rows by date) picks
+  // them up for free, with no separate code path.
+  const requirementRowsWithOpening = useMemo(
+    () => [
+      ...(allRequirementRows ?? []),
+      ...openingBalances.filter((b) => b.required_kg > 0).map((b) => ({
+        weaver_id: b.weaver_id, yarn_type_id: b.yarn_type_id, colour_id: b.colour_id, kg: b.required_kg, po_date: b.as_of_date,
+      })),
+    ],
+    [allRequirementRows, openingBalances]
+  )
+  const issuesWithOpening = useMemo(
+    () => [
+      ...allIssues,
+      ...openingBalances.filter((b) => b.excess_kg > 0).map((b) => ({ id: `ob-${b.id}`, issue_date: b.as_of_date, weaver_id: b.weaver_id })),
+    ],
+    [allIssues, openingBalances]
+  )
+  const issueItemsWithOpening = useMemo(
+    () => [
+      ...allIssueItems,
+      ...openingBalances.filter((b) => b.excess_kg > 0).map((b) => ({
+        yarn_issue_id: `ob-${b.id}`,
+        yarn_type_id: b.yarn_type_id,
+        colour_id: b.colour_id,
+        yarn_type_name: yarnNamesById[b.yarn_type_id] || '',
+        colour_name: colourNamesById[b.colour_id] || '',
+        qty: b.excess_kg,
+      })),
+    ],
+    [allIssueItems, openingBalances, yarnNamesById, colourNamesById]
+  )
 
   useEffect(() => {
     supabase
@@ -65,9 +107,9 @@ export default function StockInHand() {
   const rows = useMemo(() => {
     if (allRequirementRows === null) return []
     const relevantWeavers = weaverFilter ? weavers.filter((w) => w.id === weaverFilter) : weavers
-    const ordersAsOf = allRequirementRows.filter((r) => !r.po_date || r.po_date <= asOnDate)
-    const issueIdsAsOf = new Set(allIssues.filter((i) => !i.issue_date || i.issue_date <= asOnDate).map((i) => i.id))
-    const itemsAsOf = allIssueItems.filter((it) => issueIdsAsOf.has(it.yarn_issue_id))
+    const ordersAsOf = requirementRowsWithOpening.filter((r) => !r.po_date || r.po_date <= asOnDate)
+    const issueIdsAsOf = new Set(issuesWithOpening.filter((i) => !i.issue_date || i.issue_date <= asOnDate).map((i) => i.id))
+    const itemsAsOf = issueItemsWithOpening.filter((it) => issueIdsAsOf.has(it.yarn_issue_id))
 
     return relevantWeavers
       .map((w) => {
@@ -80,7 +122,7 @@ export default function StockInHand() {
             requiredByKey[key] = (requiredByKey[key] || 0) + (Number(r.kg) || 0)
           })
 
-        const weaverIssueIds = new Set(allIssues.filter((i) => i.weaver_id === w.id).map((i) => i.id))
+        const weaverIssueIds = new Set(issuesWithOpening.filter((i) => i.weaver_id === w.id).map((i) => i.id))
         const issuedByKey = {}
         itemsAsOf
           .filter((it) => weaverIssueIds.has(it.yarn_issue_id))
@@ -113,7 +155,7 @@ export default function StockInHand() {
         return { weaver: w, groups, totalKg: items.reduce((s, it) => s + it.stockKg, 0) }
       })
       .filter((w) => w.groups.length > 0)
-  }, [weaverFilter, asOnDate, weavers, allRequirementRows, allIssues, allIssueItems])
+  }, [weaverFilter, asOnDate, weavers, allRequirementRows, requirementRowsWithOpening, issuesWithOpening, issueItemsWithOpening])
 
   const grandTotal = rows.reduce((s, w) => s + w.totalKg, 0)
 

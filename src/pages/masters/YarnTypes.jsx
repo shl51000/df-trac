@@ -75,7 +75,7 @@ export default function YarnTypes() {
       ? await supabase.from('yarn_types').update(payload).eq('id', editingId)
       : await supabase.from('yarn_types').insert(payload)
     if (error) {
-      setError(friendlyError(error, { onDuplicate: `${n} — ${d} already exists as a yarn type.` }))
+      setError(friendlyError(error, { onDuplicate: `${n} already exists as a yarn type.` }))
       return
     }
     cancelEdit()
@@ -260,7 +260,6 @@ function YarnTypeCard({
         <div className="flex items-center gap-2.5">
           {expanded ? <ChevronDown size={16} className="text-stone-400" /> : <ChevronRight size={16} className="text-stone-400" />}
           <span className="text-sm font-semibold text-stone-800">{yarnType.name}</span>
-          <Badge tone="warn">{yarnType.denier}</Badge>
           <Badge tone="neutral">
             {colours.length} colour{colours.length === 1 ? '' : 's'}
           </Badge>

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { ArrowLeft, Check, Plus, X } from 'lucide-react'
 import { supabase } from '../../lib/supabaseClient'
 import { friendlyError } from '../../lib/pgError'
-import { withDenierSuffix, stripDenierSuffix } from '../../lib/suffix'
+import { withDenierSuffix } from '../../lib/suffix'
 import { fmt } from '../../lib/format'
 import { todayISO, getFY } from '../../lib/fy'
 import { PAYMENT_TERMS } from '../../lib/issueHelpers'
@@ -66,8 +66,8 @@ export default function NewYarnIssueForm({ editingIssue, existingIssues, onCance
   // same pattern as Production Orders' quick-add.
   const createYarnType = async (name, denier) => {
     const dNorm = withDenierSuffix(denier)
-    const dup = yarnTypes.some((y) => y.name.trim().toLowerCase() === name.toLowerCase() && stripDenierSuffix(y.denier).toLowerCase() === stripDenierSuffix(dNorm).toLowerCase())
-    if (dup) return `${name} — ${dNorm} already exists.`
+    const dup = yarnTypes.some((y) => y.name.trim().toLowerCase() === name.toLowerCase())
+    if (dup) return `${name} already exists as a yarn type.`
     const { data, error: insErr } = await supabase.from('yarn_types').insert({ name, denier: dNorm }).select().single()
     if (insErr) return friendlyError(insErr)
     await loadMasters()
@@ -155,7 +155,7 @@ export default function NewYarnIssueForm({ editingIssue, existingIssues, onCance
         yarn_issue_id: issueId,
         sl: i + 1,
         yarn_type_id: r.yarnTypeId,
-        yarn_type_name: yt ? `${yt.name} ${yt.denier}` : '',
+        yarn_type_name: yt ? yt.name : '',
         colour_id: r.colourId,
         colour_name: col ? col.colour_name : '',
         qty: r.qty,
@@ -266,7 +266,7 @@ export default function NewYarnIssueForm({ editingIssue, existingIssues, onCance
                           <option value="">Select…</option>
                           {yarnTypes.map((y) => (
                             <option key={y.id} value={y.id}>
-                              {y.name} {y.denier}
+                              {y.name}
                             </option>
                           ))}
                         </Select>
@@ -286,7 +286,7 @@ export default function NewYarnIssueForm({ editingIssue, existingIssues, onCance
                         <AddBtn
                           title="Add colour"
                           disabled={!yt}
-                          onClick={() => setAddModal({ kind: 'itemColour', itemId: row.id, yarnTypeId: yt?.id, yarnLabel: yt ? `${yt.name} ${yt.denier}` : '' })}
+                          onClick={() => setAddModal({ kind: 'itemColour', itemId: row.id, yarnTypeId: yt?.id, yarnLabel: yt ? yt.name : '' })}
                         />
                       </div>
                     </td>

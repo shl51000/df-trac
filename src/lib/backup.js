@@ -20,6 +20,7 @@ const TABLES = [
   'goods_receipts',
   'yarn_issues',
   'yarn_issue_items',
+  'yarn_opening_balances',
   'financial_years',
   'app_settings',
   'profiles',

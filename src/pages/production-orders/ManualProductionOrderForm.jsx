@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { ArrowLeft, Check, Plus, X, Image as ImageIcon } from 'lucide-react'
 import { supabase } from '../../lib/supabaseClient'
 import { friendlyError } from '../../lib/pgError'
-import { withDenierSuffix, stripDenierSuffix, stripPickSuffix } from '../../lib/suffix'
+import { withDenierSuffix, stripPickSuffix } from '../../lib/suffix'
 import { findFabricType, getDesignPrefix } from '../../lib/fabricType'
 import { isActiveCard, designCutSize, lineMtsEquivalent } from '../../lib/design'
 import { fmt } from '../../lib/format'
@@ -203,8 +203,8 @@ export default function ManualProductionOrderForm({ editingOrder, prefill, uploa
   // cancelled), then apply the new id to whichever select opened the modal.
   const createYarnType = async (name, denier) => {
     const dNorm = withDenierSuffix(denier)
-    const dup = yarnTypes.some((y) => y.name.trim().toLowerCase() === name.toLowerCase() && stripDenierSuffix(y.denier).toLowerCase() === stripDenierSuffix(dNorm).toLowerCase())
-    if (dup) return `${name} — ${dNorm} already exists.`
+    const dup = yarnTypes.some((y) => y.name.trim().toLowerCase() === name.toLowerCase())
+    if (dup) return `${name} already exists as a yarn type.`
     const { data, error } = await supabase.from('yarn_types').insert({ name, denier: dNorm }).select().single()
     if (error) return friendlyError(error)
     await loadMasters()
@@ -275,7 +275,7 @@ export default function ManualProductionOrderForm({ editingOrder, prefill, uploa
       weaver_whatsapp: weaver.whatsapp,
       weaver_email: weaver.email,
       warp_yarn_type_id: warpYarnTypeId,
-      warp_yarn_type_name: `${warpYarnType.name} ${warpYarnType.denier}`,
+      warp_yarn_type_name: warpYarnType.name,
       warp_colour_id: warpColourId,
       warp_colour_name: warpColour ? warpColour.colour_name : '',
       total_mtrs: totalMtrs,
@@ -317,7 +317,7 @@ export default function ManualProductionOrderForm({ editingOrder, prefill, uploa
     const feederQualityRows = activeFeeders.map((_, i) => {
       const r = feederQuality[i]
       const yt = yarnTypes.find((y) => y.id === r.yarnTypeId)
-      return { production_order_id: orderId, feeder_no: i + 1, yarn_type_id: r.yarnTypeId, yarn_type_name: yt ? `${yt.name} ${yt.denier}` : '' }
+      return { production_order_id: orderId, feeder_no: i + 1, yarn_type_id: r.yarnTypeId, yarn_type_name: yt ? yt.name : '' }
     })
     const { error: fqErr } = await supabase.from('production_order_feeder_quality').insert(feederQualityRows)
     if (fqErr) {
@@ -491,7 +491,7 @@ export default function ManualProductionOrderForm({ editingOrder, prefill, uploa
                 <option value="">Select…</option>
                 {yarnTypes.map((y) => (
                   <option key={y.id} value={y.id}>
-                    {y.name} {y.denier}
+                    {y.name}
                   </option>
                 ))}
               </Select>
@@ -512,7 +512,7 @@ export default function ManualProductionOrderForm({ editingOrder, prefill, uploa
               <AddBtn
                 title="Add colour"
                 disabled={!warpYarnType}
-                onClick={() => setAddModal({ kind: 'warpColour', yarnTypeId: warpYarnTypeId, yarnLabel: `${warpYarnType.name} ${warpYarnType.denier}` })}
+                onClick={() => setAddModal({ kind: 'warpColour', yarnTypeId: warpYarnTypeId, yarnLabel: warpYarnType.name })}
               />
             </div>
           </div>
@@ -567,7 +567,7 @@ export default function ManualProductionOrderForm({ editingOrder, prefill, uploa
                             <option value="">Select…</option>
                             {yarnTypes.map((y) => (
                               <option key={y.id} value={y.id}>
-                                {y.name} {y.denier}
+                                {y.name}
                               </option>
                             ))}
                           </Select>
@@ -623,7 +623,7 @@ export default function ManualProductionOrderForm({ editingOrder, prefill, uploa
                               <AddBtn
                                 title="Add colour"
                                 disabled={!yt}
-                                onClick={() => setAddModal({ kind: 'lineColour', lineId: line.id, feederIndex: fi, yarnTypeId: yt?.id, yarnLabel: yt ? `${yt.name} ${yt.denier}` : '' })}
+                                onClick={() => setAddModal({ kind: 'lineColour', lineId: line.id, feederIndex: fi, yarnTypeId: yt?.id, yarnLabel: yt ? yt.name : '' })}
                               />
                             </div>
                           </td>
