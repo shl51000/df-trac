@@ -15,13 +15,13 @@ const NAV = [
   { to: '/goods-receipt', label: 'Goods Receipt', icon: PackageCheck, ready: true },
   { to: '/pending-orders', label: 'Pending Orders', icon: Hourglass, ready: true },
   { to: '/stock', label: 'Stock-in-Hand', icon: Warehouse, ready: true },
-  { to: '/opening-balance', label: 'Opening Balance', icon: BookOpen, ready: true },
   { to: '/weavers', label: 'Weavers', icon: Users, ready: true },
   { to: '/design-library', label: 'Design Library', icon: LayoutGrid, ready: true },
   { to: '/yarn-types', label: 'Yarn Library', icon: Boxes, ready: true },
   { to: '/fabric-types', label: 'Fabric Types', icon: Tag, ready: true },
   { to: '/consumption-norms', label: 'Consumption Norms', icon: Calculator, ready: true },
   { to: '/reports', label: 'Reports', icon: ClipboardList, ready: true },
+  { to: '/opening-balance', label: 'Opening Balance', icon: BookOpen, ready: true },
   { to: '/users', label: 'Users', icon: KeyRound, ready: true },
 ]
 

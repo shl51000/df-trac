@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Pencil, Plus, X, Trash2, Search, BookOpen } from 'lucide-react'
 import { supabase } from '../../lib/supabaseClient'
 import { friendlyError } from '../../lib/pgError'
-import { fmt, fmtDateDMY } from '../../lib/format'
+import { fmt } from '../../lib/format'
 import { useAuth } from '../../context/AuthContext'
 import { Card, Label, Input, Select, Btn, Empty, Header, IconBtn, ConfirmBar } from '../../components/ui'
 
@@ -118,14 +118,22 @@ export default function OpeningBalance() {
 
   const visibleGroups = useMemo(() => {
     const q = query.trim().toLowerCase()
-    if (!q) return grouped
-    return grouped
-      .map((g) => {
-        if (g.weaver.name.toLowerCase().includes(q)) return g
-        return { ...g, items: g.items.filter((it) => it.yarnTypeName.toLowerCase().includes(q) || it.colourName.toLowerCase().includes(q)) }
-      })
-      .filter((g) => g.items.length > 0)
+    const base = !q
+      ? grouped
+      : grouped
+          .map((g) => {
+            if (g.weaver.name.toLowerCase().includes(q)) return g
+            return { ...g, items: g.items.filter((it) => it.yarnTypeName.toLowerCase().includes(q) || it.colourName.toLowerCase().includes(q)) }
+          })
+          .filter((g) => g.items.length > 0)
+    return base.map((g) => ({
+      ...g,
+      subtotalRequired: g.items.reduce((s, it) => s + (Number(it.required_kg) || 0), 0),
+      subtotalExcess: g.items.reduce((s, it) => s + (Number(it.excess_kg) || 0), 0),
+    }))
   }, [grouped, query])
+  const grandTotalRequired = visibleGroups.reduce((s, g) => s + g.subtotalRequired, 0)
+  const grandTotalExcess = visibleGroups.reduce((s, g) => s + g.subtotalExcess, 0)
 
   if (rows === null) return null
 
@@ -251,11 +259,10 @@ export default function OpeningBalance() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="text-stone-400 text-xs">
-                      <th className="text-left font-semibold px-4 py-1.5">Yarn</th>
-                      <th className="text-left font-semibold px-2 py-1.5">Colour</th>
-                      <th className="text-left font-semibold px-2 py-1.5">As of</th>
-                      <th className="text-right font-semibold px-2 py-1.5">Required</th>
-                      <th className="text-right font-semibold px-2 py-1.5">Excess</th>
+                      <th className="text-left font-semibold px-4 py-1.5">Yarn Type</th>
+                      <th className="text-left font-semibold px-2 py-1.5">Colour Name</th>
+                      <th className="text-right font-semibold px-2 py-1.5">Yarn Required</th>
+                      <th className="text-right font-semibold px-2 py-1.5">Excess Yarn</th>
                       <th className="w-16"></th>
                     </tr>
                   </thead>
@@ -264,7 +271,6 @@ export default function OpeningBalance() {
                       <tr key={it.id} className="border-t border-stone-100">
                         <td className="px-4 py-1.5 text-stone-800">{it.yarnTypeName}</td>
                         <td className="px-2 py-1.5 text-stone-800">{it.colourName}</td>
-                        <td className="px-2 py-1.5 text-stone-500">{fmtDateDMY(it.as_of_date)}</td>
                         <td className="px-2 py-1.5 text-right font-mono font-medium" style={{ color: '#DC2626' }}>
                           {it.required_kg > 0 ? fmt(it.required_kg) : ''}
                         </td>
@@ -286,6 +292,20 @@ export default function OpeningBalance() {
                       </tr>
                     ))}
                   </tbody>
+                  <tfoot>
+                    <tr className="border-t border-stone-200" style={{ backgroundColor: '#FAFAF9' }}>
+                      <td colSpan={2} className="px-4 py-1.5 text-right font-semibold text-stone-500 text-xs uppercase tracking-wide">
+                        Grand Total
+                      </td>
+                      <td className="px-2 py-1.5 text-right font-mono font-semibold" style={{ color: '#DC2626' }}>
+                        {fmt(g.subtotalRequired)}
+                      </td>
+                      <td className="px-2 py-1.5 text-right font-mono font-semibold" style={{ color: '#16A34A' }}>
+                        {fmt(g.subtotalExcess)}
+                      </td>
+                      <td></td>
+                    </tr>
+                  </tfoot>
                 </table>
               </div>
               {confirmDeleteId && g.items.some((it) => it.id === confirmDeleteId) && (
@@ -299,6 +319,17 @@ export default function OpeningBalance() {
               )}
             </Card>
           ))}
+          <div className="flex justify-end px-2">
+            <span className="text-sm font-semibold text-stone-700 flex items-center gap-4">
+              <span className="text-stone-500 text-xs uppercase tracking-wide">Overall Total</span>
+              <span className="font-mono" style={{ color: '#DC2626' }}>
+                {fmt(grandTotalRequired)} kg
+              </span>
+              <span className="font-mono" style={{ color: '#16A34A' }}>
+                {fmt(grandTotalExcess)} kg
+              </span>
+            </span>
+          </div>
         </div>
       )}
     </div>
