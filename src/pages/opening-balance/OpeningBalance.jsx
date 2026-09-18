@@ -288,7 +288,8 @@ export default function OpeningBalance() {
                           <Input
                             placeholder="0"
                             value={r.requiredKg}
-                            onChange={(e) => updateRow(idx, { requiredKg: e.target.value, ...(e.target.value ? { excessKg: '' } : {}) })}
+                            onChange={(e) => updateRow(idx, { requiredKg: e.target.value })}
+                            disabled={Number(r.excessKg) > 0}
                             className="text-right"
                           />
                         </td>
@@ -296,7 +297,8 @@ export default function OpeningBalance() {
                           <Input
                             placeholder="0"
                             value={r.excessKg}
-                            onChange={(e) => updateRow(idx, { excessKg: e.target.value, ...(e.target.value ? { requiredKg: '' } : {}) })}
+                            onChange={(e) => updateRow(idx, { excessKg: e.target.value })}
+                            disabled={Number(r.requiredKg) > 0}
                             className="text-right"
                           />
                         </td>
