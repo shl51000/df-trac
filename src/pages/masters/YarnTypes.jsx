@@ -17,6 +17,7 @@ export default function YarnTypes() {
   const [query, setQuery] = useState('')
   const [confirmDeleteId, setConfirmDeleteId] = useState(null)
   const [error, setError] = useState('')
+  const [deleteError, setDeleteError] = useState(null) // { id, message } — shown on that yarn's own card
   const [showInactive, setShowInactive] = useState(false)
 
   const load = async () => {
@@ -83,10 +84,14 @@ export default function YarnTypes() {
   }
 
   const removeYarnType = async (id) => {
+    setDeleteError(null)
     const { error } = await supabase.from('yarn_types').delete().eq('id', id)
     setConfirmDeleteId(null)
     if (error) {
-      setError(friendlyError(error, { onInUse: "Used in a Production Order — can't delete. Mark it inactive instead." }))
+      setDeleteError({
+        id,
+        message: friendlyError(error, { onInUse: "Can't delete — this yarn or one of its colours is used in a Production Order, Yarn Issue or Opening Balance. Mark it inactive instead." }),
+      })
       return
     }
     load()
@@ -182,7 +187,11 @@ export default function YarnTypes() {
               onToggle={() => toggleExpand(y.id)}
               onEdit={() => startEdit(y)}
               onToggleActive={() => toggleActive(y)}
-              onDeleteRequest={() => setConfirmDeleteId(y.id)}
+              onDeleteRequest={() => {
+                setDeleteError(null)
+                setConfirmDeleteId(y.id)
+              }}
+              deleteError={deleteError?.id === y.id ? deleteError.message : ''}
               confirmingDelete={confirmDeleteId === y.id}
               onConfirmDelete={() => removeYarnType(y.id)}
               onCancelDelete={() => setConfirmDeleteId(null)}
@@ -203,6 +212,7 @@ function YarnTypeCard({
   onEdit,
   onToggleActive,
   onDeleteRequest,
+  deleteError,
   confirmingDelete,
   onConfirmDelete,
   onCancelDelete,
@@ -289,6 +299,8 @@ function YarnTypeCard({
           />
         </div>
       )}
+
+      {deleteError && <div className="px-4 pb-3 text-xs text-[#0D9488]">{deleteError}</div>}
 
       {expanded && (
         <div className="px-4 pb-4 border-t border-stone-200">
