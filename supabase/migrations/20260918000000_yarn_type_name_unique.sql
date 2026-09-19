@@ -4,6 +4,15 @@
 -- in the UI, so two same-named yarns would have been indistinguishable
 -- in every dropdown/list. If this fails with a unique_violation, resolve
 -- the duplicate name(s) in yarn_types by hand (rename or merge) before
--- re-running.
-alter table yarn_types drop constraint yarn_types_name_denier_key;
-alter table yarn_types add constraint yarn_types_name_key unique (name);
+-- re-running. Safe to re-run: each step is skipped if already done.
+alter table yarn_types drop constraint if exists yarn_types_name_denier_key;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where conrelid = 'yarn_types'::regclass and conname = 'yarn_types_name_key'
+  ) then
+    alter table yarn_types add constraint yarn_types_name_key unique (name);
+  end if;
+end $$;

@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Trash2, Search, BookOpen, Save } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Trash2, Search, BookOpen, Save, Upload, Download } from 'lucide-react'
 import { supabase } from '../../lib/supabaseClient'
 import { friendlyError } from '../../lib/pgError'
 import { fmt } from '../../lib/format'
 import { withDenierSuffix } from '../../lib/suffix'
+import { readOpeningBalanceFile, parseOpeningBalanceSheet, createMissingMasters, downloadOpeningBalanceTemplate } from '../../lib/openingBalanceImport'
 import { useAuth } from '../../context/AuthContext'
 import { Card, Label, Input, Select, Btn, Empty, Header, IconBtn, AddBtn, ConfirmBar } from '../../components/ui'
 import { QuickAddYarnTypeModal, QuickAddColourModal } from '../production-orders/QuickAddModals'
@@ -25,6 +26,10 @@ export default function OpeningBalance() {
   const [saving, setSaving] = useState(false)
   const [confirmDeleteId, setConfirmDeleteId] = useState(null)
   const [query, setQuery] = useState('')
+  const [importResult, setImportResult] = useState(null) // { imported, duplicates, skipped[] }
+  const [importing, setImporting] = useState(false)
+  const [pendingImport, setPendingImport] = useState(null) // parsed sheet awaiting "create new yarns/colours?" confirmation
+  const fileInputRef = useRef(null)
 
   const load = async () => {
     const { data } = await supabase.from('yarn_opening_balances').select('*').order('created_at')
@@ -81,6 +86,8 @@ export default function OpeningBalance() {
   const selectWeaver = (id) => {
     setWeaverId(id)
     setError('')
+    setImportResult(null)
+    setPendingImport(null)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
@@ -95,6 +102,57 @@ export default function OpeningBalance() {
     const { error } = await supabase.from('yarn_opening_balances').delete().eq('id', row.id)
     if (error) return setError(friendlyError(error))
     load()
+  }
+
+  const onImportFile = async (e) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    setError('')
+    setImportResult(null)
+    setPendingImport(null)
+    setImporting(true)
+    try {
+      const parsed = parseOpeningBalanceSheet(await readOpeningBalanceFile(file), yarnTypes)
+      if (parsed.newYarns.length || parsed.newColours.length) setPendingImport(parsed)
+      else await applyImport(parsed)
+    } catch (err) {
+      setError(err?.message || "Couldn't read that file.")
+    } finally {
+      setImporting(false)
+    }
+  }
+
+  const confirmImport = async () => {
+    const parsed = pendingImport
+    setPendingImport(null)
+    setImporting(true)
+    try {
+      await applyImport(parsed)
+    } catch (err) {
+      await loadMasters()
+      setError(err?.message || "Couldn't create the new yarns and colours.")
+    } finally {
+      setImporting(false)
+    }
+  }
+
+  const applyImport = async (parsed) => {
+    const { skipped, duplicates } = parsed
+    const items = await createMissingMasters(parsed)
+    if (parsed.newYarns.length || parsed.newColours.length) await loadMasters()
+    setGridRows((rs) => {
+      const next = rs.filter((r) => r.yarnTypeId || r.colourId || r.requiredKg || r.excessKg)
+      const idxByKey = new Map(next.map((r, i) => [`${r.yarnTypeId}|${r.colourId}`, i]))
+      for (const it of items) {
+        const patch = { requiredKg: it.requiredKg > 0 ? String(it.requiredKg) : '', excessKg: it.excessKg > 0 ? String(it.excessKg) : '' }
+        const idx = idxByKey.get(`${it.yarnTypeId}|${it.colourId}`)
+        if (idx !== undefined) next[idx] = { ...next[idx], ...patch }
+        else next.push({ id: null, yarnTypeId: it.yarnTypeId, colourId: it.colourId, ...patch })
+      }
+      return next.length ? next : [blankRow()]
+    })
+    setImportResult({ imported: items.length, duplicates, skipped, createdYarns: parsed.newYarns.length, createdColours: parsed.newColours.length })
   }
 
   const submit = async () => {
@@ -315,11 +373,87 @@ export default function OpeningBalance() {
                 </tbody>
               </table>
             </div>
-            <div className="px-4 py-2.5 border-t border-stone-200">
+            <div className="px-4 py-2.5 border-t border-stone-200 flex flex-wrap items-center gap-x-5 gap-y-2">
               <button onClick={addGridRow} className="text-xs font-medium text-[#0D9488] hover:underline">
                 + Add row
               </button>
+              <input ref={fileInputRef} type="file" accept=".xlsx" className="hidden" onChange={onImportFile} />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={importing}
+                className="text-xs font-medium text-[#0D9488] hover:underline inline-flex items-center gap-1 disabled:opacity-50"
+              >
+                <Upload size={12} /> {importing ? 'Reading…' : 'Import from Excel'}
+              </button>
+              <button
+                onClick={() => downloadOpeningBalanceTemplate(yarnTypes)}
+                className="text-xs font-medium text-stone-500 hover:underline inline-flex items-center gap-1"
+              >
+                <Download size={12} /> Download template
+              </button>
             </div>
+            {pendingImport && (
+              <div className="mx-4 mb-3 p-3 rounded-md border border-amber-300 bg-amber-50 text-xs text-stone-700">
+                <div className="font-semibold mb-1">
+                  This file has {pendingImport.newYarns.length > 0 && `${pendingImport.newYarns.length} new yarn type${pendingImport.newYarns.length === 1 ? '' : 's'}`}
+                  {pendingImport.newYarns.length > 0 && pendingImport.newColours.length > 0 && ' and '}
+                  {pendingImport.newColours.length > 0 && `${pendingImport.newColours.length} new colour${pendingImport.newColours.length === 1 ? '' : 's'}`} that aren't in the Yarn Library yet.
+                  Create them now? Check the spelling first — this adds them to the Yarn Library for everyone.
+                </div>
+                <ul className="list-disc pl-5 max-h-40 overflow-y-auto">
+                  {pendingImport.newYarns.map((y) => (
+                    <li key={y.key}>
+                      New yarn: {y.name} ({y.denier}) — {pendingImport.newColours.filter((c) => c.yarnKey === y.key).map((c) => c.name).join(', ')}
+                    </li>
+                  ))}
+                  {Object.entries(
+                    pendingImport.newColours
+                      .filter((c) => c.yarnId)
+                      .reduce((acc, c) => ((acc[c.yarnId] ??= []).push(c.name), acc), {})
+                  ).map(([yarnId, names]) => (
+                    <li key={yarnId}>
+                      New colour{names.length === 1 ? '' : 's'} under {yarnTypesById[yarnId]?.name}: {names.join(', ')}
+                    </li>
+                  ))}
+                </ul>
+                <div className="flex gap-2 mt-2">
+                  <Btn onClick={confirmImport} disabled={importing}>
+                    Create &amp; import
+                  </Btn>
+                  <Btn variant="ghost" onClick={() => setPendingImport(null)}>
+                    Cancel
+                  </Btn>
+                </div>
+              </div>
+            )}
+            {importResult && (
+              <div className="px-4 pb-2 text-xs text-stone-600">
+                {(importResult.createdYarns > 0 || importResult.createdColours > 0) && (
+                  <div>
+                    Added to Yarn Library: {importResult.createdYarns} yarn type{importResult.createdYarns === 1 ? '' : 's'}, {importResult.createdColours} colour
+                    {importResult.createdColours === 1 ? '' : 's'}.
+                  </div>
+                )}
+                <div>
+                  {importResult.imported > 0
+                    ? `Imported ${importResult.imported} row${importResult.imported === 1 ? '' : 's'} into the grid${importResult.duplicates ? ` (${importResult.duplicates} repeated yarn + colour row${importResult.duplicates === 1 ? '' : 's'} added together)` : ''} — review, then press Save.`
+                    : 'No usable rows found in that file.'}
+                </div>
+                {importResult.skipped.length > 0 && (
+                  <div className="mt-1 text-amber-700">
+                    {importResult.skipped.length} row{importResult.skipped.length === 1 ? '' : 's'} skipped:
+                    <ul className="list-disc pl-5">
+                      {importResult.skipped.slice(0, 10).map((s, i) => (
+                        <li key={i}>
+                          Row {s.row}: {s.reason}
+                        </li>
+                      ))}
+                      {importResult.skipped.length > 10 && <li>…and {importResult.skipped.length - 10} more</li>}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
             {error && <div className="px-4 pb-2 text-xs text-[#0D9488]">{error}</div>}
             <div className="px-4 py-3 border-t border-stone-200">
               <Btn onClick={submit} disabled={saving}>
