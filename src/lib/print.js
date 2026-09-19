@@ -1,5 +1,5 @@
-// html2canvas/jsPDF are loaded on demand from cdnjs (never bundled) so a
-// Download or Share click is the only thing that pays for it.
+// html2canvas is loaded on demand from cdnjs (never bundled) so a Download
+// or Share click is the only thing that pays for it.
 const HTML2CANVAS_SRC = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js'
 
 function loadScriptOnce(src, timeoutMs = 8000) {
@@ -30,15 +30,49 @@ async function ensureCanvasLib() {
   if (typeof window.html2canvas !== 'function') throw new Error("The image-generation library didn't load correctly.")
 }
 
-export async function captureElementAsJPG(el) {
+async function captureCanvas(el) {
   await ensureCanvasLib()
-  let canvas
   try {
-    canvas = await window.html2canvas(el, { backgroundColor: '#ffffff', scale: 2 })
+    return await window.html2canvas(el, { backgroundColor: '#ffffff', scale: 2 })
   } catch (e) {
     throw new Error(`Couldn't render this to an image (${e?.message || 'unknown error'}).`, { cause: e })
   }
-  return canvas.toDataURL('image/jpeg', 0.92)
+}
+
+export async function captureElementAsJPG(el) {
+  return (await captureCanvas(el)).toDataURL('image/jpeg', 0.92)
+}
+
+// Renders the element to an A4 portrait PDF. Content that overflows one
+// page by a little is shrunk to fit; anything longer flows onto extra pages.
+// jsPDF is bundled but only fetched on the first PDF click.
+export async function downloadElementAsPDF(el, fileName) {
+  const canvas = await captureCanvas(el)
+  const { jsPDF } = await import('jspdf')
+  const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' })
+  const margin = 10
+  const boxW = pdf.internal.pageSize.getWidth() - margin * 2
+  const boxH = pdf.internal.pageSize.getHeight() - margin * 2
+
+  let mmPerPx = boxW / canvas.width
+  if (canvas.height * mmPerPx <= boxH * 1.15) mmPerPx = Math.min(mmPerPx, boxH / canvas.height)
+  const drawW = canvas.width * mmPerPx
+  const x = margin + (boxW - drawW) / 2
+  const slicePx = Math.floor(boxH / mmPerPx)
+
+  for (let y = 0, page = 0; y < canvas.height; y += slicePx, page++) {
+    const h = Math.min(slicePx, canvas.height - y)
+    const slice = document.createElement('canvas')
+    slice.width = canvas.width
+    slice.height = h
+    const ctx = slice.getContext('2d')
+    ctx.fillStyle = '#ffffff'
+    ctx.fillRect(0, 0, slice.width, slice.height)
+    ctx.drawImage(canvas, 0, y, canvas.width, h, 0, 0, canvas.width, h)
+    if (page > 0) pdf.addPage()
+    pdf.addImage(slice.toDataURL('image/jpeg', 0.92), 'JPEG', x, margin, drawW, h * mmPerPx)
+  }
+  pdf.save(fileName.replace(/[\\/:*?"<>|]/g, '-'))
 }
 
 export function downloadDataUrl(dataUrl, fileName) {

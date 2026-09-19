@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
-import { ArrowLeft, Printer, Download, Mail, Share2, Loader2 } from 'lucide-react'
+import { ArrowLeft, Printer, Download, FileDown, Mail, Share2, Loader2 } from 'lucide-react'
 import { fmt, fmtDateDMY } from '../../lib/format'
-import { captureElementAsJPG, downloadDataUrl, shareJPGOnWhatsApp, shareFileByEmail } from '../../lib/print'
+import { captureElementAsJPG, downloadElementAsPDF, downloadDataUrl, shareJPGOnWhatsApp, shareFileByEmail } from '../../lib/print'
 import { Btn } from '../../components/ui'
 
 // html2canvas 1.4.1 can't parse the oklch() color format Tailwind v4 uses
@@ -39,6 +39,17 @@ export default function OrderSlip({ order, onBack }) {
     }
   }
   const handleDownload = withCapture('download', async (dataUrl) => downloadDataUrl(dataUrl, `PO-${order.po_no}.jpg`))
+  const handleDownloadPDF = async () => {
+    setBusy('pdf')
+    setToast('')
+    try {
+      await downloadElementAsPDF(slipRef.current, `PO-${order.po_no}.pdf`)
+    } catch (e) {
+      setToast(`${e?.message || 'Something went wrong.'} If this keeps happening, try opening this in a regular browser tab.`)
+    } finally {
+      setBusy('')
+    }
+  }
   // WhatsApp/email open a tab synchronously, before the (async) capture —
   // a tab opened after an await loses the click's "user activation" and
   // gets silently popup-blocked in most browsers. See lib/print.js.
@@ -87,6 +98,9 @@ export default function OrderSlip({ order, onBack }) {
           </Btn>
           <Btn variant="ghost" onClick={handleDownload} disabled={busy === 'download'}>
             {busy === 'download' ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />} Download JPG
+          </Btn>
+          <Btn variant="ghost" onClick={handleDownloadPDF} disabled={busy === 'pdf'}>
+            {busy === 'pdf' ? <Loader2 size={14} className="animate-spin" /> : <FileDown size={14} />} Download PDF
           </Btn>
           <Btn variant="ghost" onClick={handleEmail} disabled={busy === 'email'}>
             {busy === 'email' ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} />} Share on Email

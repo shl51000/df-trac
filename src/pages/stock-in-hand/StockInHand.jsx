@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Search, ChevronDown, ChevronRight, Printer, Download, Mail, Share2, Loader2, FileText, Warehouse } from 'lucide-react'
+import { Search, ChevronDown, ChevronRight, Printer, Download, FileDown, Mail, Share2, Loader2, FileText, Warehouse } from 'lucide-react'
 import { supabase } from '../../lib/supabaseClient'
 import { fmt, fmtDateDMY } from '../../lib/format'
 import { getFY, todayISO } from '../../lib/fy'
-import { captureElementAsJPG, downloadDataUrl, shareJPGOnWhatsApp, shareFileByEmail, downloadCSV } from '../../lib/print'
+import { captureElementAsJPG, downloadElementAsPDF, downloadDataUrl, shareJPGOnWhatsApp, shareFileByEmail, downloadCSV } from '../../lib/print'
 import { buildColourLedger } from '../../lib/yarnLedger'
 import { useFY } from '../../context/FYContext'
 import { Card, Input, Select, Btn, Empty, Header } from '../../components/ui'
@@ -203,6 +203,7 @@ export default function StockInHand() {
     const dataUrl = await captureElementAsJPG(printRef.current)
     downloadDataUrl(dataUrl, `Stock-in-Hand-${asOnDate}.jpg`)
   })
+  const handleDownloadPDF = withExpandedCapture('pdf', async () => downloadElementAsPDF(printRef.current, `Stock-in-Hand-${asOnDate}.pdf`))
   const handleShareWhatsApp = async () => {
     setBusy('whatsapp')
     setToast('')
@@ -286,6 +287,9 @@ export default function StockInHand() {
           </Btn>
           <Btn variant="ghost" onClick={handleDownload} disabled={busy === 'download'}>
             {busy === 'download' ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />} Download JPG
+          </Btn>
+          <Btn variant="ghost" onClick={handleDownloadPDF} disabled={busy === 'pdf'}>
+            {busy === 'pdf' ? <Loader2 size={14} className="animate-spin" /> : <FileDown size={14} />} Download PDF
           </Btn>
           <Btn variant="ghost" onClick={handleShareEmail} disabled={busy === 'email'}>
             {busy === 'email' ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} />} Share on Email
