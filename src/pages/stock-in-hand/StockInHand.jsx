@@ -339,7 +339,7 @@ export default function StockInHand() {
               <Card key={weaver.id} className="overflow-hidden">
                 <div className="px-4 py-2.5 border-b border-stone-200 flex items-center justify-between">
                   <span className="text-sm font-semibold text-stone-800">{weaver.name}</span>
-                  <span className="text-sm font-semibold font-mono" style={{ color: '#16A34A' }}>
+                  <span className="text-sm font-semibold font-mono" style={{ color: '#000000' }}>
                     {fmt(totalKg)} kg
                   </span>
                 </div>
@@ -352,9 +352,9 @@ export default function StockInHand() {
                         <div className="flex items-center justify-between px-4 py-2 cursor-pointer select-none hover:bg-stone-50" onClick={() => toggleGroup(key)}>
                           <div className="flex items-center gap-2">
                             {expanded ? <ChevronDown size={14} className="text-stone-400" /> : <ChevronRight size={14} className="text-stone-400" />}
-                            <span className="text-sm font-medium text-stone-800">{g.yarnTypeName}</span>
+                            <span className="text-sm font-bold underline text-stone-800">{g.yarnTypeName}</span>
                           </div>
-                          <span className="text-sm font-semibold font-mono" style={{ color: '#16A34A' }}>
+                          <span className="text-sm font-semibold font-mono" style={{ color: '#2563EB' }}>
                             {fmt(g.subtotalKg)} kg
                           </span>
                         </div>
@@ -384,7 +384,7 @@ export default function StockInHand() {
             ))}
             <div className="flex justify-end px-2">
               <span className="text-sm font-semibold text-stone-700">
-                Grand total: <span className="font-mono" style={{ color: '#16A34A' }}>{fmt(grandTotal)} kg</span>
+                Grand total: <span className="font-mono" style={{ color: '#000000' }}>{fmt(grandTotal)} kg</span>
               </span>
             </div>
           </div>
