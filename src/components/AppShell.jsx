@@ -19,10 +19,10 @@ const NAV = [
   { to: '/design-library', label: 'Design Library', icon: LayoutGrid, ready: true },
   { to: '/yarn-types', label: 'Yarn Library', icon: Boxes, ready: true },
   { to: '/fabric-types', label: 'Fabric Types', icon: Tag, ready: true },
-  { to: '/consumption-norms', label: 'Consumption Norms', icon: Calculator, ready: true },
+  { to: '/consumption-norms', label: 'Consumption Norms', icon: Calculator, ready: true, adminOnly: true },
   { to: '/reports', label: 'Reports', icon: ClipboardList, ready: true },
   { to: '/opening-balance', label: 'Opening Balance', icon: BookOpen, ready: true },
-  { to: '/users', label: 'Users', icon: KeyRound, ready: true },
+  { to: '/users', label: 'Users', icon: KeyRound, ready: true, adminOnly: true },
 ]
 
 function NavButton({ n, onNavigate }) {
@@ -75,7 +75,7 @@ export default function AppShell() {
           <Logo size={40} dark />
         </div>
         <nav className="px-2 pb-3 pt-2 md:pt-0 space-y-0.5">
-          {NAV.map((n) => (
+          {NAV.filter((n) => isAdmin || !n.adminOnly).map((n) => (
             <NavButton key={n.to} n={n} onNavigate={() => setNavOpen(false)} />
           ))}
         </nav>

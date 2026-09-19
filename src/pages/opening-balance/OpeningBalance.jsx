@@ -258,9 +258,10 @@ export default function OpeningBalance() {
     <div>
       <Header
         title="Opening Balance"
-        subtitle="One-time starting figures as on go-live (1 Apr 2026) for yarn already owed to, or already excess with, a weaver before Production Orders/Yarn Issue existed in this system. Carried automatically into that weaver's Yarn Required and Stock-in-Hand from this point on."
+        subtitle={`One-time starting figures as on go-live (1 Apr 2026) for yarn already owed to, or already excess with, a weaver before Production Orders/Yarn Issue existed in this system. Carried automatically into that weaver's Yarn Required and Stock-in-Hand from this point on.${isAdmin ? '' : ' View only — an admin maintains these figures.'}`}
       />
 
+      {isAdmin && (
       <Card className="mb-6 overflow-hidden">
         <div className="p-4 border-b border-stone-200 grid sm:grid-cols-2 gap-3 max-w-lg">
           <div>
@@ -463,6 +464,7 @@ export default function OpeningBalance() {
           </>
         )}
       </Card>
+      )}
 
       {addModal?.kind === 'yarn' && <QuickAddYarnTypeModal onClose={() => setAddModal(null)} onCreate={createYarnType} />}
       {addModal?.kind === 'colour' && (
@@ -478,7 +480,7 @@ export default function OpeningBalance() {
 
       {rows.length === 0 ? (
         <Card>
-          <Empty icon={BookOpen} title="No opening balances yet" hint="Add each weaver's pre-existing Yarn Required or Excess Yarn above, as on your go-live date." />
+          <Empty icon={BookOpen} title="No opening balances yet" hint={isAdmin ? "Add each weaver's pre-existing Yarn Required or Excess Yarn above, as on your go-live date." : 'An admin has not entered any yet.'} />
         </Card>
       ) : visibleGroups.length === 0 ? (
         <Card>
@@ -488,13 +490,17 @@ export default function OpeningBalance() {
         <div className="flex flex-col gap-3">
           {visibleGroups.map((g) => (
             <Card key={g.weaver.id} className="overflow-hidden">
-              <button
-                onClick={() => selectWeaver(g.weaver.id)}
-                title="Edit this weaver's opening balance above"
-                className="w-full text-left px-4 py-2.5 border-b border-stone-200 hover:bg-stone-50"
-              >
-                <span className="text-sm font-semibold text-stone-800">{g.weaver.name}</span>
-              </button>
+              {isAdmin ? (
+                <button
+                  onClick={() => selectWeaver(g.weaver.id)}
+                  title="Edit this weaver's opening balance above"
+                  className="w-full text-left px-4 py-2.5 border-b border-stone-200 hover:bg-stone-50"
+                >
+                  <span className="text-sm font-semibold text-stone-800">{g.weaver.name}</span>
+                </button>
+              ) : (
+                <div className="px-4 py-2.5 border-b border-stone-200 text-sm font-semibold text-stone-800">{g.weaver.name}</div>
+              )}
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>

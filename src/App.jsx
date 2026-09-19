@@ -30,6 +30,11 @@ function Protected() {
   )
 }
 
+function AdminOnly({ children }) {
+  const { isAdmin } = useAuth()
+  return isAdmin ? children : <Navigate to="/production-orders" replace />
+}
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -48,8 +53,8 @@ export default function App() {
             <Route path="goods-receipt" element={<GoodsReceipt />} />
             <Route path="pending-orders" element={<PendingOrders />} />
             <Route path="stock" element={<StockInHand />} />
-            <Route path="consumption-norms" element={<ConsumptionNorms />} />
-            <Route path="users" element={<Users />} />
+            <Route path="consumption-norms" element={<AdminOnly><ConsumptionNorms /></AdminOnly>} />
+            <Route path="users" element={<AdminOnly><Users /></AdminOnly>} />
             <Route path="reports" element={<Reports />} />
             <Route path="*" element={<Navigate to="/weavers" replace />} />
           </Route>
