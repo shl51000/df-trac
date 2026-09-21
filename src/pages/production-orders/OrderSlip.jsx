@@ -119,7 +119,7 @@ export default function OrderSlip({ order, onBack }) {
         style={{ backgroundColor: '#ffffff', border: `1px solid ${STONE[200]}`, color: STONE[800] }}
       >
         <div className="text-center mb-1">
-          <div style={{ color: '#AE2F30', fontFamily: 'var(--font-wordmark)' }} className="text-2xl">
+          <div style={{ color: '#1C1917', fontFamily: 'var(--font-wordmark)' }} className="text-2xl">
             SOUTH HANDLOOMS
           </div>
         </div>

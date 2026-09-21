@@ -195,7 +195,7 @@ export default function Reports() {
 
       <div className="print-area bg-white">
         <div className="mb-4 hidden print:block">
-          <div style={{ fontFamily: 'var(--font-wordmark)', color: '#AE2F30' }} className="text-xl">
+          <div style={{ fontFamily: 'var(--font-wordmark)', color: '#1C1917' }} className="text-xl">
             SOUTH HANDLOOMS
           </div>
           <div className="text-sm font-semibold text-stone-700 mt-1">
