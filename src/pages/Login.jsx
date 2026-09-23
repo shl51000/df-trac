@@ -24,7 +24,7 @@ export default function Login() {
         <div className="flex justify-center mb-1">
           <Logo size={64} dark />
         </div>
-        <div className="text-center text-sm font-medium mb-7" style={{ color: '#5EEAD4' }}>
+        <div className="text-center text-sm font-medium mb-7 text-white">
           PO &amp; Yarn Ledger
         </div>
 
