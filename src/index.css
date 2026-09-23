@@ -1,10 +1,10 @@
-@import url('https://fonts.googleapis.com/css2?family=Bevan&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Tinos:wght@400&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 @import "tailwindcss";
 
 @theme {
   --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
-  --font-wordmark: 'Bevan', ui-serif, serif;
+  --font-wordmark: 'Tinos', 'Times New Roman', ui-serif, serif;
 
   --color-ink: #1c2620;
   --color-accent: #0d9488;

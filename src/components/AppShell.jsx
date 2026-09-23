@@ -63,7 +63,7 @@ export default function AppShell() {
   return (
     <div className="min-h-screen bg-stone-50 text-stone-800 flex flex-col md:flex-row">
       <div style={{ backgroundColor: '#1C2620' }} className="md:hidden flex items-center justify-between px-4 py-3 text-white sticky top-0 z-30">
-        <Logo size={30} dark />
+        <Logo size={36} dark />
         <button onClick={() => setNavOpen((v) => !v)}>{navOpen ? <X size={20} /> : <Menu size={20} />}</button>
       </div>
 
@@ -72,7 +72,7 @@ export default function AppShell() {
         className={`${navOpen ? 'block' : 'hidden'} md:block md:w-56 shrink-0 text-white relative flex flex-col`}
       >
         <div className="hidden md:block px-5 pt-6 pb-5">
-          <Logo size={40} dark />
+          <Logo size={56} dark />
         </div>
         <nav className="px-2 pb-3 pt-2 md:pt-0 space-y-0.5">
           {NAV.filter((n) => isAdmin || !n.adminOnly).map((n) => (

@@ -8,6 +8,7 @@ import { buildColourLedger } from '../../lib/yarnLedger'
 import { useFY } from '../../context/FYContext'
 import { Card, Input, Select, Btn, Empty, Header } from '../../components/ui'
 import ColourLedgerModal from '../../components/ColourLedgerModal'
+import Logo from '../../components/Logo'
 
 export default function StockInHand() {
   const { currentFY } = useFY()
@@ -319,9 +320,7 @@ export default function StockInHand() {
 
       <div ref={printRef} className="print-area bg-white">
         <div className="mb-4">
-          <div style={{ fontFamily: 'var(--font-wordmark)', color: '#1C1917' }} className="text-xl">
-            SOUTH HANDLOOMS
-          </div>
+          <Logo size={44} />
           <div className="text-sm font-semibold text-stone-700 mt-1">Stock-in-Hand — as on {fmtDateDMY(asOnDate)}</div>
         </div>
 

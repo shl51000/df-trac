@@ -3,6 +3,7 @@ import { ArrowLeft, Printer, Download, FileDown, Mail, Share2, Loader2 } from 'l
 import { fmt, fmtDateDMY } from '../../lib/format'
 import { captureElementAsJPG, downloadElementAsPDF, downloadDataUrl, shareJPGOnWhatsApp, shareFileByEmail } from '../../lib/print'
 import { Btn } from '../../components/ui'
+import Logo from '../../components/Logo'
 
 // html2canvas 1.4.1 can't parse the oklch() color format Tailwind v4 uses
 // by default for every color utility, so anything captured for
@@ -119,9 +120,7 @@ export default function OrderSlip({ order, onBack }) {
         style={{ backgroundColor: '#ffffff', border: `1px solid ${STONE[200]}`, color: STONE[800] }}
       >
         <div className="text-center mb-1">
-          <div style={{ color: '#1C1917', fontFamily: 'var(--font-wordmark)' }} className="text-2xl">
-            SOUTH HANDLOOMS
-          </div>
+          <Logo size={56} />
         </div>
         <div className="text-center text-xs mb-6" style={{ color: STONE[500] }}>
           37, Rajamannar Street, T.Nagar, Chennai - 600017 &nbsp;·&nbsp; 9003251000 &nbsp;·&nbsp; mail@southhandlooms.com

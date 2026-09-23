@@ -6,6 +6,7 @@ import { formatOrderQty } from '../../lib/orderHelpers'
 import { downloadCSV } from '../../lib/print'
 import { useFY } from '../../context/FYContext'
 import { Card, Select, Input, Btn, Empty, Header } from '../../components/ui'
+import Logo from '../../components/Logo'
 
 const REPORT_TYPES = [
   { key: 'po', label: 'Production Orders' },
@@ -195,9 +196,7 @@ export default function Reports() {
 
       <div className="print-area bg-white">
         <div className="mb-4 hidden print:block">
-          <div style={{ fontFamily: 'var(--font-wordmark)', color: '#7A1F2B' }} className="text-xl">
-            SOUTH HANDLOOMS
-          </div>
+          <Logo size={44} />
           <div className="text-sm font-semibold text-stone-700 mt-1">
             {REPORT_TYPES.find((t) => t.key === reportType).label} — {rangeLabel}
           </div>

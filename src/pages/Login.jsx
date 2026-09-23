@@ -22,7 +22,7 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center px-4 bg-stone-100">
       <div className="w-full max-w-sm rounded-2xl p-8 shadow-xl" style={{ backgroundColor: '#1C2620' }}>
         <div className="flex justify-center mb-1">
-          <Logo size={44} dark />
+          <Logo size={64} dark />
         </div>
         <div className="text-center text-sm font-medium mb-7" style={{ color: '#5EEAD4' }}>
           PO &amp; Yarn Ledger
