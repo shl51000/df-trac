@@ -8,7 +8,7 @@ import { isActiveCard, designCutSize, lineMtsEquivalent } from '../../lib/design
 import { fmt } from '../../lib/format'
 import { todayISO } from '../../lib/fy'
 import { uploadDesignSheet } from '../../lib/designSheets'
-import { Card, Label, Input, Select, Btn, AddBtn } from '../../components/ui'
+import { Card, Label, Input, Select, SearchSelect, Btn, AddBtn } from '../../components/ui'
 import SheetViewerModal from '../../components/SheetViewerModal'
 import { QuickAddWeaverModal, QuickAddYarnTypeModal, QuickAddColourModal } from './QuickAddModals'
 
@@ -480,35 +480,29 @@ export default function ManualProductionOrderForm({ editingOrder, prefill, uploa
           <div>
             <Label>Warp yarn</Label>
             <div className="flex gap-1.5">
-              <Select
+              <SearchSelect
                 value={warpYarnTypeId}
-                onChange={(e) => {
-                  setWarpYarnTypeId(e.target.value)
+                onChange={(v) => {
+                  setWarpYarnTypeId(v)
                   setWarpColourId('')
                   setError('')
                 }}
-              >
-                <option value="">Select…</option>
-                {yarnTypes.map((y) => (
-                  <option key={y.id} value={y.id}>
-                    {y.name}
-                  </option>
-                ))}
-              </Select>
+                options={yarnTypes.map((y) => ({ value: y.id, label: y.name }))}
+                placeholder="Search yarn…"
+              />
               <AddBtn title="Add yarn quality" onClick={() => setAddModal({ kind: 'warpYarn' })} />
             </div>
           </div>
           <div>
             <Label>Warp colour</Label>
             <div className="flex gap-1.5">
-              <Select value={warpColourId} onChange={(e) => { setWarpColourId(e.target.value); setError('') }} disabled={!warpYarnType}>
-                <option value="">{warpYarnType ? 'Select…' : 'Pick warp yarn first'}</option>
-                {(warpYarnType?.colours || []).map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.colour_name}
-                  </option>
-                ))}
-              </Select>
+              <SearchSelect
+                value={warpColourId}
+                onChange={(v) => { setWarpColourId(v); setError('') }}
+                options={(warpYarnType?.colours || []).map((c) => ({ value: c.id, label: c.colour_name }))}
+                placeholder={warpYarnType ? 'Search colour…' : 'Pick warp yarn first'}
+                disabled={!warpYarnType}
+              />
               <AddBtn
                 title="Add colour"
                 disabled={!warpYarnType}
@@ -563,14 +557,12 @@ export default function ManualProductionOrderForm({ editingOrder, prefill, uploa
                     {activeFeeders.map((f, i) => (
                       <td key={f.feeder_no} className="px-4 py-1.5 min-w-[190px]">
                         <div className="flex gap-1.5">
-                          <Select value={feederQuality[i]?.yarnTypeId || ''} onChange={(e) => setFeederQualityAt(i, e.target.value)}>
-                            <option value="">Select…</option>
-                            {yarnTypes.map((y) => (
-                              <option key={y.id} value={y.id}>
-                                {y.name}
-                              </option>
-                            ))}
-                          </Select>
+                          <SearchSelect
+                            value={feederQuality[i]?.yarnTypeId || ''}
+                            onChange={(v) => setFeederQualityAt(i, v)}
+                            options={yarnTypes.map((y) => ({ value: y.id, label: y.name }))}
+                            placeholder="Search yarn…"
+                          />
                           <AddBtn title="Add yarn quality" onClick={() => setAddModal({ kind: 'feederYarn', feederIndex: i })} />
                         </div>
                       </td>
@@ -612,14 +604,13 @@ export default function ManualProductionOrderForm({ editingOrder, prefill, uploa
                         return (
                           <td key={f.feeder_no} className="px-2 py-1.5 min-w-[170px]">
                             <div className="flex gap-1.5">
-                              <Select value={line.colours[fi] || ''} onChange={(e) => updateLineColour(line.id, fi, e.target.value)} disabled={!yt}>
-                                <option value="">{yt ? 'Select…' : '—'}</option>
-                                {(yt?.colours || []).map((c) => (
-                                  <option key={c.id} value={c.id}>
-                                    {c.colour_name}
-                                  </option>
-                                ))}
-                              </Select>
+                              <SearchSelect
+                                value={line.colours[fi] || ''}
+                                onChange={(v) => updateLineColour(line.id, fi, v)}
+                                options={(yt?.colours || []).map((c) => ({ value: c.id, label: c.colour_name }))}
+                                placeholder={yt ? 'Search colour…' : '—'}
+                                disabled={!yt}
+                              />
                               <AddBtn
                                 title="Add colour"
                                 disabled={!yt}

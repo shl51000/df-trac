@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { AlertTriangle, Plus } from 'lucide-react'
 
 /* ---------- UI atoms — ported 1:1 from the DF-Trac prototype ---------- */
@@ -24,6 +25,121 @@ export const Select = (props) => (
     className={`w-full rounded border border-stone-300 bg-white px-3 py-2 text-sm text-stone-800 focus:outline-none focus:ring-2 focus:ring-[#0D9488]/30 focus:border-[#0D9488] disabled:opacity-50 disabled:cursor-not-allowed ${props.className || ''}`}
   />
 )
+
+/* Type-to-search replacement for <Select>. options: [{ value, label }];
+   onChange receives the chosen value ('' never — pick is required to change).
+   The list is portalled to <body> with fixed positioning so it isn't clipped
+   by overflow-x-auto table wrappers. */
+export function SearchSelect({ value, onChange, options, placeholder = 'Search…', disabled = false, className = '' }) {
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const [active, setActive] = useState(0)
+  const [rect, setRect] = useState(null)
+  const inputRef = useRef(null)
+  const listRef = useRef(null)
+
+  const selected = options.find((o) => o.value === value)
+  const q = query.trim().toLowerCase()
+  const matches = q
+    ? options
+        .filter((o) => o.label.toLowerCase().includes(q))
+        .sort((a, b) => a.label.toLowerCase().startsWith(q) === b.label.toLowerCase().startsWith(q) ? 0 : a.label.toLowerCase().startsWith(q) ? -1 : 1)
+    : options
+
+  useLayoutEffect(() => {
+    if (!open) return
+    const place = () => setRect(inputRef.current?.getBoundingClientRect() || null)
+    place()
+    window.addEventListener('scroll', place, true)
+    window.addEventListener('resize', place)
+    return () => {
+      window.removeEventListener('scroll', place, true)
+      window.removeEventListener('resize', place)
+    }
+  }, [open])
+
+  useEffect(() => {
+    listRef.current?.children[active]?.scrollIntoView({ block: 'nearest' })
+  }, [active])
+
+  const openList = () => {
+    if (disabled) return
+    setQuery('')
+    setActive(Math.max(0, options.findIndex((o) => o.value === value)))
+    setOpen(true)
+  }
+  const choose = (o) => {
+    if (o.value !== value) onChange(o.value)
+    setOpen(false)
+    setQuery('')
+  }
+  const onKeyDown = (e) => {
+    if (!open && (e.key === 'ArrowDown' || e.key === 'Enter')) {
+      e.preventDefault()
+      return openList()
+    }
+    if (!open) return
+    if (e.key === 'ArrowDown') { e.preventDefault(); setActive((i) => Math.min(i + 1, matches.length - 1)) }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setActive((i) => Math.max(i - 1, 0)) }
+    else if (e.key === 'Enter') { e.preventDefault(); if (matches[active]) choose(matches[active]) }
+    else if (e.key === 'Escape') { setOpen(false); setQuery('') }
+    else if (e.key === 'Tab') { if (q && matches[active]) choose(matches[active]); else setOpen(false) }
+  }
+
+  const spaceBelow = rect ? window.innerHeight - rect.bottom : 0
+  const dropUp = rect && spaceBelow < 220 && rect.top > spaceBelow
+
+  return (
+    <>
+      <input
+        ref={inputRef}
+        type="text"
+        disabled={disabled}
+        placeholder={selected ? selected.label : placeholder}
+        value={open ? query : selected?.label || ''}
+        onFocus={openList}
+        onClick={() => !open && openList()}
+        onBlur={() => { setOpen(false); setQuery('') }}
+        onChange={(e) => { setQuery(e.target.value); setActive(0); if (!open) setOpen(true) }}
+        onKeyDown={onKeyDown}
+        autoComplete="off"
+        className={`w-full rounded border border-stone-300 bg-white px-3 py-2 text-sm text-stone-800 focus:outline-none focus:ring-2 focus:ring-[#0D9488]/30 focus:border-[#0D9488] placeholder:text-stone-400 disabled:opacity-50 disabled:cursor-not-allowed ${className}`}
+      />
+      {open && rect &&
+        createPortal(
+          <ul
+            ref={listRef}
+            onMouseDown={(e) => e.preventDefault()}
+            style={{
+              position: 'fixed',
+              left: rect.left,
+              width: Math.max(rect.width, 180),
+              ...(dropUp ? { bottom: window.innerHeight - rect.top + 2 } : { top: rect.bottom + 2 }),
+              zIndex: 1000,
+            }}
+            className="max-h-56 overflow-y-auto rounded border border-stone-200 bg-white shadow-lg py-1 text-sm"
+          >
+            {matches.length === 0 ? (
+              <li className="px-3 py-1.5 text-stone-400">No matches</li>
+            ) : (
+              matches.map((o, i) => (
+                <li
+                  key={o.value}
+                  onMouseEnter={() => setActive(i)}
+                  onClick={() => choose(o)}
+                  style={i === active ? { backgroundColor: '#F0FDFA', color: '#0F766E' } : {}}
+                  className={`px-3 py-1.5 cursor-pointer ${o.value === value ? 'font-semibold' : ''}`}
+                >
+                  {o.label}
+                </li>
+              ))
+            )}
+          </ul>,
+          document.body,
+        )}
+    </>
+  )
+}
 
 export const Btn = ({ variant = 'primary', className = '', style = {}, ...props }) => {
   const styles = {
