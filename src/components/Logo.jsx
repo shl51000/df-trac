@@ -31,8 +31,8 @@ export default function Logo({ size = 44, dark = false }) {
         <div style={{ ...text, position: 'absolute', left: -u * 0.07, bottom: 0, fontSize: u * 0.79, color: accent }}>DF</div>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', marginLeft: u * 0.115 }}>
-        <div style={{ ...text, fontSize: u * 0.445, color: accent }}>SOUTH</div>
-        <div style={{ ...text, fontSize: u * 0.232, color: ink, marginTop: u * 0.115 }}>HANDLOOMS</div>
+        <div style={{ ...text, fontSize: u * 0.53, color: accent, letterSpacing: '0.02em' }}>SOUTH</div>
+        <div style={{ ...text, fontSize: u * 0.28, color: ink, marginTop: u * 0.1, letterSpacing: '0.02em' }}>HANDLOOMS</div>
       </div>
     </div>
   )
