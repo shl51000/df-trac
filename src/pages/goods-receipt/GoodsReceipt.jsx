@@ -8,7 +8,7 @@ import { lineMtsEquivalent } from '../../lib/design'
 import { orderStatus, formatOrderQty, nativeReceivedQtyForOrder, nativeOrderedQty } from '../../lib/orderHelpers'
 import { useAuth } from '../../context/AuthContext'
 import { useFY } from '../../context/FYContext'
-import { Card, Label, Input, Select, Btn, Empty, Header, IconBtn } from '../../components/ui'
+import { Card, Label, Input, Select, SearchSelect, Btn, Empty, Header, IconBtn } from '../../components/ui'
 
 const RECEIPT_SORTS = {
   dateNewest: { label: 'Date (newest)', fn: (a, b) => b.inv_date.localeCompare(a.inv_date) },
@@ -176,21 +176,16 @@ export default function GoodsReceipt() {
           </div>
           <div>
             <Label>PO number</Label>
-            <Select
+            <SearchSelect
               value={poId}
-              onChange={(e) => {
-                setPoId(e.target.value)
+              onChange={(v) => {
+                setPoId(v)
                 setError('')
               }}
+              options={pendingOrdersForWeaver.map((o) => ({ value: o.id, label: `PO ${o.po_no} — ${o.design_label}` }))}
+              placeholder={!weaverId ? 'Pick weaver first' : pendingOrdersForWeaver.length ? 'Search PO no or design…' : 'No pending POs for this weaver'}
               disabled={!weaverId}
-            >
-              <option value="">{!weaverId ? 'Pick weaver first' : pendingOrdersForWeaver.length ? 'Select PO…' : 'No pending POs for this weaver'}</option>
-              {pendingOrdersForWeaver.map((o) => (
-                <option key={o.id} value={o.id}>
-                  PO {o.po_no} — {o.design_label}
-                </option>
-              ))}
-            </Select>
+            />
           </div>
           <div className="col-span-2">
             <Label>Qty received ({unit})</Label>

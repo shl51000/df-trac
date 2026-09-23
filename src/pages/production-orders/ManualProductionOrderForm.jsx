@@ -448,20 +448,15 @@ export default function ManualProductionOrderForm({ editingOrder, prefill, uploa
           </div>
           <div>
             <Label>Design No</Label>
-            <Select
+            <SearchSelect
               value={designId}
-              onChange={(e) => {
-                setDesignId(e.target.value)
+              onChange={(v) => {
+                setDesignId(v)
                 setError('')
               }}
-            >
-              <option value="">Select design…</option>
-              {designs.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.label}
-                </option>
-              ))}
-            </Select>
+              options={designs.map((d) => ({ value: d.id, label: String(d.label) }))}
+              placeholder="Search design…"
+            />
           </div>
         </div>
 
